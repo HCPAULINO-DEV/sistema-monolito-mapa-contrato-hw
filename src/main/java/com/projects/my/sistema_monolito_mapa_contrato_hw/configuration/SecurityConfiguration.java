@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,19 +26,55 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
                 .authorizeHttpRequests(req -> req
+
+                        // 🔓 ROTAS PÚBLICAS
                         .requestMatchers(
                                 "/login",
                                 "/",
                                 "/index.html",
-                                "/assets/**",      // liberar arquivos estáticos JS, CSS, imagens
-                                "/favicon.ico",    // favicon
+                                "/assets/**",
+                                "/favicon.ico",
                                 "/api/login"
                         ).permitAll()
+
+                        // 👑 USERS → só ADMIN
+                        .requestMatchers("/users/**").hasRole("ADMIN")
+
+                        // 📄 CONTRATOS
+                        .requestMatchers(HttpMethod.GET, "/api/contratos/**")
+                        .hasAnyRole("ADMIN", "VIEWER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/contratos/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.PATCH, "/api/contratos/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.DELETE, "/api/contratos/**")
+                        .hasRole("ADMIN")
+
+                        // 🔧 EQUIPAMENTOS
+                        .requestMatchers(HttpMethod.GET, "/api/contratos/*/equipamentos/**")
+                        .hasAnyRole("ADMIN", "VIEWER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/contratos/*/equipamentos/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.DELETE, "/api/contratos/*/equipamentos/**")
+                        .hasRole("ADMIN")
+
+                        // 🔒 QUALQUER OUTRA → autenticado
                         .anyRequest().authenticated()
                 )
+
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
+
                 .build();
     }
 
